@@ -321,7 +321,7 @@ def validate_consistency(data_dir: Path, meta_dir: Path) -> Tuple[bool, List[str
 
 def main():
     """Main validation function."""
-    dataset_dir = Path("/home/choiyj/Isaac-GR00T/robotwin/aloha-agilex_clean_50_lerobot")
+    dataset_dir = Path("/home/leejw/Isaac-GR00T/robotwin/aloha-agilex_clean_50_lerobot")
     
     if not dataset_dir.exists():
         print(f"❌ Dataset directory not found: {dataset_dir}")

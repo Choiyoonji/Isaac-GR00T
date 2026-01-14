@@ -203,23 +203,23 @@ Ensure your input data follows the **GR00T-flavored LeRobot v2 format**, and spe
 #### Run Fine-tuning Script
 ```bash
 # Set number of GPUs
-export NUM_GPUS=1
+export NUM_GPUS=2
 
-CUDA_VISIBLE_DEVICES=0 uv run python \
+CUDA_VISIBLE_DEVICES=0,1 uv run torchrun --nproc_per_node=$NUM_GPUS \
     gr00t/experiment/launch_finetune.py \
     --base-model-path nvidia/GR00T-N1.6-3B \
-    --dataset-path <DATASET_PATH> \
+    --dataset-path robotwin/aloha-agilex_clean_50_lerobot \
     --embodiment-tag NEW_EMBODIMENT \
-    --modality-config-path <MODALITY_CONFIG_PATH> \
+    --modality-config-path robotwin/robotwin_modality_config.py \
     --num-gpus $NUM_GPUS \
-    --output-dir <OUTPUT_PATH> \
+    --output-dir robotwin/checkpoints/robotwin_grab_roller \
     --save-total-limit 5 \
-    --save-steps 2000 \
-    --max-steps 2000 \
+    --save-steps 10000 \
+    --max-steps 30000 \
     --use-wandb \
-    --global-batch-size 32 \
+    --global-batch-size 30 \
     --color-jitter-params brightness 0.3 contrast 0.4 saturation 0.5 hue 0.08 \
-    --dataloader-num-workers 4
+    --dataloader-num-workers 8
 ```
 
 > For more extensive finetuning configuration, use `gr00t/experiment/launch_train.py` instead to launch the training process.

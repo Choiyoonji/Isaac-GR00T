@@ -169,8 +169,18 @@ def run(config: Config):
     # Setup model training pipeline.
     pipeline = MODEL_REGISTRY.get(type(config.model))(config, save_cfg_dir)
     pipeline.setup()
+    # model = pipeline.return_model()
+    
     model = pipeline.return_model()
+    
+    # [🔥수정 1] 모델을 명시적으로 현재 GPU로 이동
+    # torchrun을 쓰면 local_rank에 맞는 GPU만 보일 수도 있지만, 
+    # 안전하게 명시적으로 보냅니다.
+    device = torch.device("cuda", local_rank)
+    model.to(device)
+    
     train_dataset, eval_dataset = pipeline.return_dataset()
+    # train_dataset, eval_dataset = pipeline.return_dataset()
     data_collator = pipeline.return_collator()
     processor = pipeline.return_processor()
     processor.save_pretrained(processor_dir)
@@ -189,7 +199,7 @@ def run(config: Config):
 
     # Create training arguments
     training_args = TrainingArguments(
-        output_dir=str(output_dir),
+        output_dir=str(output_dir),local_rank=local_rank,
         max_steps=config.training.max_steps,
         per_device_train_batch_size=per_device_train_batch_size,
         per_device_eval_batch_size=config.training.eval_batch_size,
