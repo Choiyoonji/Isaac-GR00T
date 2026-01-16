@@ -27,11 +27,18 @@ def extract_step_data(
         if allow_padding:
             indices_to_load = [max(0, min(idx, len(episode_data) - 1)) for idx in indices_to_load]
         for key in config.modality_keys:
-            if f"{modality}.{key}" in episode_data.columns:
-                modality_data = episode_data[f"{modality}.{key}"].iloc[indices_to_load]
+            # For camera_labels, keys already include full path (annotation.human.camera.*)
+            # Don't add modality prefix for camera_labels
+            if modality == "camera_labels":
+                column_name = key
+            else:
+                column_name = f"{modality}.{key}"
+            
+            if column_name in episode_data.columns:
+                modality_data = episode_data[column_name].iloc[indices_to_load]
             else:
                 raise KeyError(
-                    f"{modality}.{key} not found in episode data, available keys: {episode_data.columns}"
+                    f"{column_name} not found in episode data, available keys: {episode_data.columns}"
                 )
             if modality in ["state", "action"]:
                 # Stack arrays for numerical modalities

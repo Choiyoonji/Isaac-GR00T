@@ -35,7 +35,9 @@ Dataset structure matches the modality.json created by convert_robotwin_to_lerob
         "right_wrist": {"original_key": "observation.images.right_wrist"}
     },
     "annotation": {
-        "human.action.task_description": {}
+        "human.action.task_description": {},
+        "human.camera.cam2_activate": {},
+        "human.camera.cam3_activate": {}
     }
 }
 """
@@ -125,6 +127,15 @@ robotwin_aloha_config = {
             "annotation.human.action.task_description",  # Task description annotations
         ],
     ),
+    
+    # Camera labels for Camera MoE training
+    "camera_labels": ModalityConfig(
+        delta_indices=[0],
+        modality_keys=[
+            "annotation.human.camera.cam2_activate",  # Left wrist camera importance (0 or 1)
+            "annotation.human.camera.cam3_activate",  # Right wrist camera importance (0 or 1)
+        ],
+    ),
 }
 
 
@@ -188,6 +199,14 @@ robotwin_aloha_absolute_config = {
         delta_indices=[0],
         modality_keys=[
             "annotation.human.action.task_description",
+        ],
+    ),
+    # Camera labels for Camera MoE training
+    "camera_labels": ModalityConfig(
+        delta_indices=[0],
+        modality_keys=[
+            "annotation.human.camera.cam2_activate",
+            "annotation.human.camera.cam3_activate",
         ],
     ),
 }

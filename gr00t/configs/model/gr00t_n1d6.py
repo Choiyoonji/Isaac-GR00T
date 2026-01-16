@@ -101,6 +101,16 @@ class Gr00tN1d6Config(PretrainedConfig):
     # Multi-embodiment parameters
     max_num_embodiments: int = 32
 
+    # Camera Router / MoE Configuration
+    use_camera_moe: bool = False  # Enable Camera MoE for multi-camera fusion
+    camera_router_hidden_dim: int = 512  # Router MLP hidden dimension
+    camera_router_temperature: float = 1.0  # Softmax temperature for routing weights
+    camera_router_use_gumbel: bool = False  # Use Gumbel-Softmax during training
+    camera_router_gumbel_temp: float = 1.0  # Gumbel-Softmax temperature
+    camera_routing_loss_weight: float = 0.1  # Weight for routing loss in total loss
+    camera_router_use_attention_pooling: bool = True  # Use learnable attention pooling for prompt
+    camera_router_use_learnable_scales: bool = True  # Use learnable scaling for gated features
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         for key, value in kwargs.items():

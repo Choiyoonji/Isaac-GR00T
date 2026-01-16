@@ -1,4 +1,4 @@
-from typing import Tuple
+from typing import Optional, Tuple
 
 from gr00t.configs.model.gr00t_n1d6 import Gr00tN1d6Config
 from gr00t.model.modules.dit import AlternateVLDiT, DiT
@@ -461,6 +461,30 @@ class Gr00tN1d6(PreTrainedModel):
             transformers_loading_kwargs=transformers_loading_kwargs,
         )
 
+        # Initialize Camera MoE if enabled
+        self.use_camera_moe = config.use_camera_moe
+        self.camera_moe = None
+        self.routing_loss_weight = config.camera_routing_loss_weight
+        
+        if self.use_camera_moe:
+            from gr00t.model.modules.camera_router import CameraRouterConfig, CameraMoE
+            
+            router_config = CameraRouterConfig(
+                embed_dim=config.backbone_embedding_dim,
+                state_dim=config.max_state_dim,
+                num_experts=2,  # cam2 (Left Wrist) and cam3 (Right Wrist)
+                router_hidden_dim=config.camera_router_hidden_dim,
+                router_temperature=config.camera_router_temperature,
+                use_gumbel_softmax=config.camera_router_use_gumbel,
+                gumbel_temperature=config.camera_router_gumbel_temp,
+                use_attention_pooling=config.camera_router_use_attention_pooling,
+                use_learnable_scales=config.camera_router_use_learnable_scales,
+            )
+            self.camera_moe = CameraMoE(router_config)
+            print(f"Camera MoE initialized with config: {router_config}")
+        else:
+            print("Camera MoE disabled")
+
     def prepare_input(self, inputs: dict) -> Tuple[BatchFeature, BatchFeature]:
         """Prepare inputs for backbone and action head."""
 
@@ -501,16 +525,150 @@ class Gr00tN1d6(PreTrainedModel):
             inputs: Dictionary containing:
                 - Eagle inputs (prefixed with 'eagle_')
                 - Action inputs (state, action, embodiment_id, etc.)
+                - Optional multi-camera inputs (cam1_*, cam2_*, cam3_*)
 
         Returns:
             BatchFeature containing loss and other outputs
         """
         # Prepare inputs for backbone and action head
         backbone_inputs, action_inputs = self.prepare_input(inputs)
-        backbone_outputs = self.backbone(backbone_inputs)
+        
+        # Process through backbone (potentially with multi-camera)
+        if self.use_camera_moe and self.camera_moe is not None:
+            backbone_outputs, routing_weights = self._forward_with_camera_moe(
+                backbone_inputs, action_inputs
+            )
+        else:
+            backbone_outputs = self.backbone(backbone_inputs)
+            routing_weights = None
+        
+        # Process through action head
         action_outputs = self.action_head(backbone_outputs, action_inputs)
+        
+        # Add routing loss if using Camera MoE
+        if routing_weights is not None and self.camera_moe is not None and "cam2_activate" in inputs and "cam3_activate" in inputs:
+            routing_loss = self.camera_moe.compute_routing_loss(
+                routing_weights,
+                cam2_activate=inputs["cam2_activate"],
+                cam3_activate=inputs["cam3_activate"],
+            )
+            action_outputs["routing_loss"] = routing_loss
+            # Add routing loss to total loss
+            if "loss" in action_outputs:
+                action_outputs["loss"] = (
+                    action_outputs["loss"] + self.routing_loss_weight * routing_loss
+                )
+            action_outputs["routing_weights"] = routing_weights
 
         return action_outputs
+    
+    def _forward_with_camera_moe(
+        self, backbone_inputs: BatchFeature, action_inputs: BatchFeature
+    ) -> Tuple[BatchFeature, torch.Tensor]:
+        """
+        Forward pass with Camera MoE for multi-camera fusion.
+        
+        Args:
+            backbone_inputs: Inputs for backbone, potentially containing multiple cameras
+            action_inputs: Inputs for action head (contains state)
+        
+        Returns:
+            fused_backbone_outputs: Fused backbone outputs
+            routing_weights: Camera routing weights [batch, num_experts]
+        """
+        # Check if multi-camera inputs are provided
+        # Expected format: cam1_*, cam2_*, cam3_* (e.g., cam1_pixel_values, cam1_input_ids)
+        has_cam1 = any(k.startswith("cam1_") for k in backbone_inputs.keys())
+        has_cam2 = any(k.startswith("cam2_") for k in backbone_inputs.keys())
+        has_cam3 = any(k.startswith("cam3_") for k in backbone_inputs.keys())
+        
+        if not (has_cam1 or has_cam2 or has_cam3):
+            # Fall back to single camera mode
+            print("Warning: Camera MoE enabled but no multi-camera inputs found. Using default backbone.")
+            backbone_outputs = self.backbone(backbone_inputs)
+            # Return dummy routing weights
+            batch_size = backbone_outputs.backbone_features.shape[0]
+            routing_weights = torch.zeros(batch_size, 2, device=self.device)
+            routing_weights[:, 0] = 0.5  # Equal weights for dummy
+            routing_weights[:, 1] = 0.5
+            return backbone_outputs, routing_weights
+        
+        # Process each camera through backbone
+        def process_camera(cam_prefix):
+            """Extract camera-specific inputs and process through backbone."""
+            cam_inputs = {}
+            for k, v in backbone_inputs.items():
+                if k.startswith(f"{cam_prefix}_"):
+                    # Remove camera prefix
+                    key = k[len(cam_prefix) + 1:]
+                    cam_inputs[key] = v
+            
+            if cam_inputs:
+                cam_outputs = self.backbone(BatchFeature(data=cam_inputs))
+                return cam_outputs.backbone_features
+            else:
+                return None
+        
+        # Process all cameras
+        cam1_tokens = process_camera("cam1")
+        cam2_tokens = process_camera("cam2")
+        cam3_tokens = process_camera("cam3")
+        
+        # Ensure cam1 (base camera) exists
+        if cam1_tokens is None:
+            raise ValueError("Camera MoE requires cam1 (base camera) features")
+        
+        # Extract prompt tokens and state for router
+        # Prompt tokens: We need to get them from the backbone inputs
+        # For Eagle, prompt is embedded in the backbone features
+        # For router, we'll use a simple approach: mean pooling of cam1 features as prompt
+        # In production, you should extract actual prompt embeddings
+        prompt_tokens = cam1_tokens  # Simplified: use cam1 as proxy for prompt
+        state = action_inputs.state  # Robot state
+        
+        # Fuse cameras using Camera MoE
+        if self.camera_moe is None:
+            raise ValueError("Camera MoE is not initialized")
+        
+        fused_tokens, routing_weights = self.camera_moe(
+            cam1_tokens=cam1_tokens,
+            cam2_tokens=cam2_tokens,
+            cam3_tokens=cam3_tokens,
+            prompt_tokens=prompt_tokens,
+            state=state,
+            train=self.training,
+        )
+        
+        # Create fused backbone outputs (mimic original backbone output format)
+        # We need to reconstruct attention_mask and image_mask
+        # For simplicity, use cam1's masks
+        attention_mask = None
+        image_mask = None
+        for k, v in backbone_inputs.items():
+            if k.startswith("cam1_"):
+                if "attention_mask" in k:
+                    attention_mask = v
+                elif "image_mask" in k:
+                    image_mask = v
+        
+        # If masks not found in inputs, create default ones
+        if attention_mask is None:
+            batch_size, seq_len = fused_tokens.shape[:2]
+            attention_mask = torch.ones(batch_size, seq_len, dtype=torch.bool, device=self.device)
+        if image_mask is None:
+            # Assume no image mask
+            batch_size, seq_len = fused_tokens.shape[:2]
+            image_mask = torch.zeros(batch_size, seq_len, dtype=torch.bool, device=self.device)
+        
+        fused_backbone_outputs = BatchFeature(
+            data={
+                "backbone_features": fused_tokens,
+                "backbone_attention_mask": attention_mask,
+                "image_mask": image_mask,
+            }
+        )
+        
+        return fused_backbone_outputs, routing_weights
 
     def get_action(self, inputs: dict) -> BatchFeature:
         """
@@ -519,9 +677,21 @@ class Gr00tN1d6(PreTrainedModel):
         # Prepare inputs for backbone and action head
         backbone_inputs, action_inputs = self.prepare_input(inputs)
 
-        # Forward through backbone
-        backbone_outputs = self.backbone(backbone_inputs)
+        # Forward through backbone (potentially with multi-camera)
+        if self.use_camera_moe and self.camera_moe is not None:
+            backbone_outputs, routing_weights = self._forward_with_camera_moe(
+                backbone_inputs, action_inputs
+            )
+        else:
+            backbone_outputs = self.backbone(backbone_inputs)
+            routing_weights = None
+        
+        # Generate actions
         action_outputs = self.action_head.get_action(backbone_outputs, action_inputs)
+        
+        # Add routing weights to outputs if available
+        if routing_weights is not None:
+            action_outputs["routing_weights"] = routing_weights
 
         return action_outputs
 

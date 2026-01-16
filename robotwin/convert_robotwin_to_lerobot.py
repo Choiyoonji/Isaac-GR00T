@@ -145,6 +145,17 @@ def load_instruction(input_dir: Path, episode_idx: int, use_seen: bool = True) -
     return "perform the task"
 
 
+def load_label(input_dir: Path, episode_idx: int) -> np.ndarray:
+    """Load task label for an episode."""
+    label_path = input_dir / "labels" / f"label{episode_idx}.hdf5"
+    
+    if label_path.exists():
+        with h5py.File(label_path, "r") as f:
+            label = np.array(f["labels"])
+    
+    return np.array([])
+
+
 def create_state_vector(data: Dict[str, Any], frame_idx: int) -> np.ndarray:
     """
     Create observation.state vector from episode data.
@@ -322,7 +333,9 @@ def create_modality_json(output_dir: Path):
             }
         },
         "annotation": {
-            "human.action.task_description": {}
+            "human.action.task_description": {},
+            "human.camera.cam2_activate": {},
+            "human.camera.cam3_activate": {}
         }
     }
     
@@ -410,6 +423,16 @@ def create_info_json(
                 "names": None
             },
             "task_index": {
+                "dtype": "int64",
+                "shape": [1],
+                "names": None
+            },
+            "annotation.human.camera.cam2_activate": {
+                "dtype": "int64",
+                "shape": [1],
+                "names": None
+            },
+            "annotation.human.camera.cam3_activate": {
                 "dtype": "int64",
                 "shape": [1],
                 "names": None
@@ -514,6 +537,9 @@ def convert_robotwin_to_lerobot(
         # Get task instruction
         instruction = load_instruction(input_dir, orig_episode_idx, use_seen_instructions)
         task_index = task_to_index[instruction]
+
+        # Get camera labels
+        cam_labels = load_label(input_dir, orig_episode_idx)
         
         # Determine chunk
         chunk_idx = new_episode_idx // chunk_size
@@ -550,6 +576,11 @@ def convert_robotwin_to_lerobot(
             # Create state and action vectors
             state = create_state_vector(data, frame_idx)
             action = create_action_vector(data, min(frame_idx+30, episode_length - 1))  # Use next action for current frame
+            label = cam_labels[frame_idx] if cam_labels.size > 0 else [1,1]
+
+            # Generate camera labels for Camera MoE training
+            cam2_activate = int(label[0])  # Left wrist camera
+            cam3_activate = int(label[1])  # Right wrist camera
             
             # Create row
             row = {
@@ -558,6 +589,8 @@ def convert_robotwin_to_lerobot(
                 "timestamp": float(frame_idx / fps),
                 "annotation.human.action.task_description": task_index,
                 "annotation.human.validity": 0,  # 0 = valid
+                "annotation.human.camera.cam2_activate": cam2_activate,
+                "annotation.human.camera.cam3_activate": cam3_activate,
                 "task_index": task_index,
                 "episode_index": new_episode_idx,
                 "frame_index": frame_idx,

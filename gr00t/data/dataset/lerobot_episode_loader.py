@@ -39,7 +39,7 @@ LEROBOT_MODALITY_FILENAME = "modality.json"
 LEROBOT_STATS_FILE_NAME = "stats.json"
 LEROBOT_RELATIVE_STATS_FILE_NAME = "relative_stats.json"
 
-ALLOWED_MODALITIES = ["video", "state", "action", "language"]
+ALLOWED_MODALITIES = ["video", "state", "action", "language", "camera_labels", "annotation"]
 DEFAULT_COLUMN_NAMES = {
     "state": "observation.state",
     "action": "action",
@@ -329,6 +329,15 @@ class LeRobotEpisodeLoader:
             )
             for joint_group in joint_groups_df.columns:
                 loaded_df[f"{modality_type}.{joint_group}"] = joint_groups_df[joint_group]
+
+        # Load camera labels (for Camera MoE training)
+        if "camera_labels" in self.modality_configs:
+            for key in self.modality_configs["camera_labels"].modality_keys:
+                if key in original_df.columns:
+                    # Camera labels are already in the right format (int64)
+                    loaded_df[key] = original_df[key]
+                else:
+                    raise ValueError(f"Camera label key {key} not found in parquet file. Available: {original_df.columns.tolist()}")
 
         return loaded_df
 

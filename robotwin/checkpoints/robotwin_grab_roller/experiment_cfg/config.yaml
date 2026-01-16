@@ -4,7 +4,7 @@ data: !!python/object:gr00t.configs.data.data_config.DataConfig
   datasets:
   - !!python/object:gr00t.configs.data.data_config.SingleDatasetConfig
     dataset_paths:
-    - ./robotwin/aloha-agilex_clean_50_lerobot
+    - robotwin/aloha-agilex_clean_50_lerobot
     dataset_type: physical_embodiment
     embodiment_tag: new_embodiment
     mix_ratio: 1.0
@@ -208,7 +208,7 @@ training: !!python/object:gr00t.configs.training.training_config.TrainingConfig
   assert_loss_less_than: null
   batch_size: null
   bf16: true
-  dataloader_num_workers: 1
+  dataloader_num_workers: 8
   ddp_bucket_cap_mb: 100
   deepspeed_stage: 2
   enable_open_loop_eval: false
@@ -220,7 +220,7 @@ training: !!python/object:gr00t.configs.training.training_config.TrainingConfig
   eval_strategy: 'no'
   experiment_name: null
   fp16: false
-  global_batch_size: 4
+  global_batch_size: 32
   gradient_accumulation_steps: 1
   gradient_checkpointing: false
   learning_rate: 0.0001
@@ -229,18 +229,18 @@ training: !!python/object:gr00t.configs.training.training_config.TrainingConfig
   max_concurrent_uploads: 2
   max_grad_norm: 1.0
   max_retries: 3
-  max_steps: 60000
-  num_gpus: 1
+  max_steps: 30000
+  num_gpus: 2
   open_loop_eval_plot_indices: null
   open_loop_eval_steps_per_traj: 100
   open_loop_eval_traj_ids:
   - 0
   optim: adamw_torch
-  output_dir: ./robotwin/checkpoints/robotwin_grab_roller
+  output_dir: robotwin/checkpoints/robotwin_grab_roller
   remove_unused_columns: false
   save_best_eval_metric_greater_is_better: true
   save_best_eval_metric_name: ''
-  save_steps: 20000
+  save_steps: 10000
   save_total_limit: 5
   save_vl_model: false
   start_from_checkpoint: nvidia/GR00T-N1.6-3B

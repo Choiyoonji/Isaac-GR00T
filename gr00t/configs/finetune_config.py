@@ -116,3 +116,10 @@ class FinetuneConfig:
 
     num_shards_per_epoch: int = int(1e5)
     """Number of shards to use for the dataset. reduce this number if vram is limited."""
+
+    # --- Camera MoE Configuration ---
+    use_camera_moe: bool = False
+    """If True, enable Camera MoE for multi-camera fusion with routing."""
+
+    camera_routing_loss_weight: float = 0.1
+    """Weight for the routing loss when Camera MoE is enabled."""

@@ -69,6 +69,11 @@ if __name__ == "__main__":
     config.model.backbone_trainable_params_fp32 = True
     config.model.use_relative_action = True
 
+    # Camera MoE configuration
+    if ft_config.use_camera_moe:
+        config.model.use_camera_moe = True
+        config.model.camera_routing_loss_weight = ft_config.camera_routing_loss_weight
+
     config.training.start_from_checkpoint = ft_config.base_model_path
     config.training.optim = "adamw_torch"
     config.training.global_batch_size = ft_config.global_batch_size

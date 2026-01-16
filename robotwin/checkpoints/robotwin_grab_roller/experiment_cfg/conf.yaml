@@ -65,7 +65,7 @@ model:
 data:
   datasets:
   - dataset_paths:
-    - ./robotwin/aloha-agilex_clean_50_lerobot
+    - robotwin/aloha-agilex_clean_50_lerobot
     embodiment_tag: new_embodiment
     mix_ratio: 1.0
     dataset_type: physical_embodiment
@@ -166,10 +166,10 @@ data:
   - 224
   video_backend: torchcodec
 training:
-  output_dir: ./robotwin/checkpoints/robotwin_grab_roller
+  output_dir: robotwin/checkpoints/robotwin_grab_roller
   experiment_name: null
-  max_steps: 60000
-  global_batch_size: 4
+  max_steps: 30000
+  global_batch_size: 32
   batch_size: null
   gradient_accumulation_steps: 1
   learning_rate: 0.0001
@@ -185,7 +185,7 @@ training:
   bf16: true
   eval_bf16: true
   logging_steps: 10
-  save_steps: 20000
+  save_steps: 10000
   save_total_limit: 5
   save_vl_model: false
   upload_checkpoints: false
@@ -206,8 +206,8 @@ training:
   transformers_access_token: null
   use_ddp: false
   ddp_bucket_cap_mb: 100
-  num_gpus: 1
-  dataloader_num_workers: 1
+  num_gpus: 2
+  dataloader_num_workers: 8
   remove_unused_columns: false
   use_wandb: true
   wandb_project: finetune-gr00t-n1d6
@@ -220,5 +220,5 @@ training:
   - 0
   open_loop_eval_steps_per_traj: 100
   open_loop_eval_plot_indices: null
-max_steps: 60000
-save_steps: 20000
+max_steps: 30000
+save_steps: 10000
