@@ -10,8 +10,8 @@ echo "======================================================================"
 echo ""
 
 # Configuration
-INPUT_DIR="aloha-agilex_clean_50"
-OUTPUT_DIR="aloha-agilex_clean_50_lerobot"
+INPUT_DIR="stack_three_bowls"
+OUTPUT_DIR="stack_three_bowls_lerobot"
 ROBOT_TYPE="aloha_agilex"
 FPS=30
 CHUNK_SIZE=1000

@@ -220,7 +220,7 @@ training: !!python/object:gr00t.configs.training.training_config.TrainingConfig
   eval_strategy: 'no'
   experiment_name: null
   fp16: false
-  global_batch_size: 32
+  global_batch_size: 128
   gradient_accumulation_steps: 1
   gradient_checkpointing: false
   learning_rate: 0.0001
@@ -229,7 +229,7 @@ training: !!python/object:gr00t.configs.training.training_config.TrainingConfig
   max_concurrent_uploads: 2
   max_grad_norm: 1.0
   max_retries: 3
-  max_steps: 30000
+  max_steps: 25000
   num_gpus: 2
   open_loop_eval_plot_indices: null
   open_loop_eval_steps_per_traj: 100
@@ -240,7 +240,7 @@ training: !!python/object:gr00t.configs.training.training_config.TrainingConfig
   remove_unused_columns: false
   save_best_eval_metric_greater_is_better: true
   save_best_eval_metric_name: ''
-  save_steps: 10000
+  save_steps: 1000
   save_total_limit: 5
   save_vl_model: false
   start_from_checkpoint: nvidia/GR00T-N1.6-3B

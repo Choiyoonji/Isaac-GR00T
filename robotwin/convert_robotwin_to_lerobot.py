@@ -152,6 +152,7 @@ def load_label(input_dir: Path, episode_idx: int) -> np.ndarray:
     if label_path.exists():
         with h5py.File(label_path, "r") as f:
             label = np.array(f["labels"])
+        return label
     
     return np.array([])
 

@@ -168,8 +168,8 @@ data:
 training:
   output_dir: robotwin/checkpoints/robotwin_grab_roller
   experiment_name: null
-  max_steps: 30000
-  global_batch_size: 32
+  max_steps: 25000
+  global_batch_size: 128
   batch_size: null
   gradient_accumulation_steps: 1
   learning_rate: 0.0001
@@ -185,7 +185,7 @@ training:
   bf16: true
   eval_bf16: true
   logging_steps: 10
-  save_steps: 10000
+  save_steps: 1000
   save_total_limit: 5
   save_vl_model: false
   upload_checkpoints: false
@@ -220,5 +220,5 @@ training:
   - 0
   open_loop_eval_steps_per_traj: 100
   open_loop_eval_plot_indices: null
-max_steps: 30000
-save_steps: 10000
+max_steps: 25000
+save_steps: 1000
